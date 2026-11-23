@@ -1,0 +1,24 @@
+{
+  "name": "OPERACIÓN VERANO",
+  "short_name": "OPERACIÓN VERANO",
+  "description": "App de entrenamiento y disciplina diaria para el verano",
+  "start_url": "/operacion-verano-app/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0c",
+  "theme_color": "#0a0a0c",
+  "icons": [
+    {
+      "src": "/operacion-verano-app/icons/icon-192.png",
+      "sizes": "192x192",
+      "type": "image/png",
+      "purpose": "maskable any"
+    },
+    {
+      "src": "/operacion-verano-app/icons/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png",
+      "purpose": "maskable any"
+    }
+  ]
+}

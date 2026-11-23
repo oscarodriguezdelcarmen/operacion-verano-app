@@ -1,0 +1,29 @@
+name: Hourly Push Reminder
+
+on:
+  schedule:
+    # Every hour from 09:00 to 23:00 (Europe/Madrid)
+    - cron: '0 8-22 * * *'
+  workflow_dispatch:
+
+jobs:
+  send-reminder:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install web-push
+        run: npm install web-push
+
+      - name: Send push notification
+        run: node .github/scripts/send-push.js
+        env:
+          VAPID_PRIVATE_KEY: ${{ secrets.VAPID_PRIVATE_KEY }}
+          VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          COMPLETED_DATE: ${{ secrets.COMPLETED_DATE }}

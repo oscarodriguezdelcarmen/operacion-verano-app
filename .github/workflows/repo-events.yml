@@ -1,0 +1,45 @@
+name: Handle Repo Events
+
+on:
+  issues:
+    types: [opened]
+
+jobs:
+  handle-event:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Handle push registration
+        if: github.event.issue.title == '[PUSH_REGISTER]'
+        run: python .github/scripts/handle_issue.py
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+
+      - name: Handle gold completed
+        if: github.event.issue.title == '[GOLD_COMPLETED]'
+        run: python .github/scripts/handle_issue.py
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+
+      - name: Handle gold revoked
+        if: github.event.issue.title == '[GOLD_REVOKED]'
+        run: python .github/scripts/handle_issue.py
+        env:
+          GH_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
+
+      - name: Close issue
+        run: |
+          curl -s -X PATCH \
+            -H "Authorization: token ${{ secrets.GH_ADMIN_TOKEN }}" \
+            -H "Accept: application/vnd.github.v3+json" \
+            -d '{"state":"closed"}' \
+            "https://api.github.com/repos/${{ github.repository }}/issues/${{ github.event.issue.number }}"
+        env:
+          GH_ADMIN_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
