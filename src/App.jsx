@@ -329,6 +329,8 @@ function App() {
   const [notifPermission, setNotifPermission] = useState(null)
   const [registrationLoading, setRegistrationLoading] = useState(false)
   const [pushRegistered, setPushRegistered] = useState(false)
+  const [pushPhase, setPushPhase] = useState(null)
+  const [pushError, setPushError] = useState(null)
 
   const checkNotifications = useCallback(async () => {
     if ('Notification' in window) {
@@ -347,52 +349,78 @@ function App() {
     }
   }
 
-  const registerPush = async () => {
+    const registerPush = async () => {
     if (!('serviceWorker' in navigator)) {
-      alert('Tu navegador no soporta service workers.')
+      setPushError('Tu navegador no soporta service workers.')
+      setPushPhase('error')
       return
     }
+    if (Notification.permission !== 'granted') {
+      setPushError(null)
+      setPushPhase('permisos')
+      const res = await Notification.requestPermission()
+      setNotifPermission(res)
+      if (Notification.permission !== 'granted') {
+        setPushError('Necesitas aceptar notificaciones para recibir recordatorios.')
+        setPushPhase('error')
+        return
+      }
+    }
+    setPushPhase('registro')
     setRegistrationLoading(true)
+    setPushError(null)
     try {
       const sw = await navigator.serviceWorker.ready
       const sub = await sw.pushManager.getSubscription()
       if (sub) {
         setPushRegistered(true)
+        setPushPhase('done')
         setRegistrationLoading(false)
         return
       }
       const subscription = await sw.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(process.env.REACT_APP_VAPID_PUBLIC_KEY || '')
+        applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_GITHUB_PUSHER || import.meta.env.VAPID_PUBLIC_KEY || ''),
       })
-      // Store subscription via API
-      await fetch('https://api.github.com/repos/oscarodriguezdelcarmen/operacion-verano-app/issues', {
+      const ghToken = import.meta.env.VITE_GITHUB_TOKEN || import.meta.env.REACT_APP_GITHUB_TOKEN || ''
+      setPushPhase('api')
+      const res = await fetch('https://api.github.com/repos/oscarodriguezdelcarmen/operacion-verano-app/issues', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `token ${process.env.REACT_APP_GITHUB_TOKEN}`,
+          'Authorization': `token ${ghToken}`,
         },
         body: JSON.stringify({
           title: '[PUSH_REGISTER]',
           body: JSON.stringify({
             endpoint: sub.endpoint,
             expiration: sub.expirationTime,
-            keys: { p256dh: btoa(String.fromCharCode(...new Uint8Array(sub.keys.p256dh))), auth: sub.keys.auth }
+            keys: {
+              p256dh: btoa(String.fromCharCode(...new Uint8Array(sub.keys.p256dh))),
+              auth: sub.keys.auth,
+            },
           }),
           labels: ['push'],
           assignees: [],
         }),
+        signals: [AbortSignal.timeout(8000)],
       })
+      if (!res.ok) {
+        const text = await res.text().catch(() => '')
+        throw new Error(`GitHub API responded ${res.status}: ${text.substring(0, 200)}`)
+      }
       setPushRegistered(true)
+      setPushPhase('done')
+      setRegistrationLoading(false)
+      setPushError(null)
       alert('🔔 Avisos activados. Recibirás recordatorios cada hora.')
     } catch (err) {
       console.error('Push registration error:', err)
-      alert('Error al activar avisos: ' + err.message)
-    } finally {
+      setPushError(err.message || String(err))
+      setPushPhase('error')
       setRegistrationLoading(false)
     }
   }
-
   function urlBase64ToUint8Array(base64String) {
     const padding = '='.repeat((4 - base64String.length % 4) % 4)
     const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
@@ -408,11 +436,12 @@ function App() {
   // ---------- GITHUB PUSH (SILENT) ----------
   const sendSilentPush = async (title, body) => {
     try {
+      const ghToken = import.meta.env.VITE_GITHUB_TOKEN || import.meta.env.REACT_APP_GITHUB_TOKEN || ''
       await fetch('https://api.github.com/repos/oscarodriguezdelcarmen/operacion-verano-app/issues', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': `token ${process.env.REACT_APP_GITHUB_TOKEN}`,
+          'Authorization': `token ${ghToken}`,
         },
         body: JSON.stringify({
           title,
@@ -472,7 +501,6 @@ function App() {
 
   // ---------- CALCULATE BEST STREAK ----------
   const getBestStreak = () => {
-    // Would need to read historical data; for now compute from state
     return state.cumulative.bestStreak || 0
   }
 
@@ -549,6 +577,8 @@ function App() {
               registrationLoading={registrationLoading}
               notificationsSupported={('Notification' in window)}
               notifPermission={notifPermission}
+              pushPhase={pushPhase}
+              pushError={pushError}
             />
           )}
 

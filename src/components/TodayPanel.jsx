@@ -171,8 +171,19 @@ export default function TodayPanel({
             onClick={onRegisterPush}
             disabled={registrationLoading}
           >
-            {registrationLoading ? '⏳...' : pushRegistered ? '✅ Recordatorios activados' : 'Activar avisos'}
+            {registrationLoading && pushPhase === 'permisos' && '⏳ 1/3 Pidiendo permisos de notificación...'}
+            {registrationLoading && pushPhase === 'registro' && '⏳ 2/3 Registrando iPhone...'}
+            {registrationLoading && pushPhase === 'api' && '⏳ 3/3 Conectando con GitHub...'}
+            {registrationLoading && pushPhase === 'done' && '⏳...' }
+            {!registrationLoading && pushPhase === 'done' && '✅ Recordatorios activados'}
+            {!registrationLoading && pushPhase === 'error' && '❌ Error'}
+            {!registrationLoading && !pushPhase && 'Activar avisos'}
           </button>
+          {pushError && (
+            <div className="mt-2 text-xs text-red-400 bg-[#2a0a0a] rounded p-2 border border-red-500/30">
+              {pushError}
+            </div>
+          )}
         </div>
       )}
     </div>
