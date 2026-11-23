@@ -533,7 +533,7 @@ function App() {
               pctBra={pctBra}
               medalEmoji={medalEmoji()}
               medalLabel={medalLabel()}
-              medalColor={medalColor},
+              medalColor={medalColor}
               completed={state.completed}
               currentWarning={currentWarning}
               onAddFlexion={addFlexion}
