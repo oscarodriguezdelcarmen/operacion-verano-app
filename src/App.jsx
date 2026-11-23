@@ -127,14 +127,14 @@ function App() {
       seriesAbs: 0,
       seriesBra: 0,
       absExercises: [
-        { name: '1. Crunch abdominal 3x25', done: false },
-        { name: '2. Elevaciones de piernas 3x15', done: false },
-        { name: '3. Plancha abdominal 3x45s', done: false },
+        { name: '1. Crunch abdominal 3x25', series: [false, false, false] },
+        { name: '2. Elevaciones de piernas 3x15', series: [false, false, false] },
+        { name: '3. Plancha abdominal 3x45s', series: [false, false, false] },
       ],
       braExercises: [
-        { name: '1. Agarraje/hand-grip 3x30s', done: false },
-        { name: '2. Fondos 3x12', done: false },
-        { name: '3. Curl bíceps 3x15', done: false },
+        { name: '1. Agarre / hand-grip 3x30s', series: [false, false, false] },
+        { name: '2. Fondos 3x12', series: [false, false, false] },
+        { name: '3. Curl bíceps 3x15', series: [false, false, false] },
       ],
       date: formatDate(TODAY),
       completed: false,
@@ -194,14 +194,14 @@ function App() {
       medalObtained: null,
       warning: null,
       absExercises: [
-        { name: '1. Crunch abdominal 3x25', done: false },
-        { name: '2. Elevaciones de piernas 3x15', done: false },
-        { name: '3. Plancha abdominal 3x45s', done: false },
+        { name: '1. Crunch abdominal 3x25', series: [false, false, false] },
+        { name: '2. Elevaciones de piernas 3x15', series: [false, false, false] },
+        { name: '3. Plancha abdominal 3x45s', series: [false, false, false] },
       ],
       braExercises: [
-        { name: '1. Agarraje/hand-grip 3x30s', done: false },
-        { name: '2. Fondos 3x12', done: false },
-        { name: '3. Curl bíceps 3x15', done: false },
+        { name: '1. Agarre / hand-grip 3x30s', series: [false, false, false] },
+        { name: '2. Fondos 3x12', series: [false, false, false] },
+        { name: '3. Curl bíceps 3x15', series: [false, false, false] },
       ],
       goldNotifiedDate: '',
     }))
@@ -236,18 +236,28 @@ function App() {
     setState((prev) => ({ ...prev, km: Math.max(0, Math.min(100, v)) }))
   }
 
-  const toggleAbsSeries = (i) => {
+  const toggleAbsSeries = (exerciseIndex, seriesIndex) => {
     setState((prev) => {
-      const newSeries = prev.seriesAbs + (prev.absExercises[i].done ? 0 : 1)
       const newAbs = prev.absExercises.map((ex, idx) =>
-        idx === i ? { ...ex, done: !ex.done } : ex
+        idx === exerciseIndex
+          ? { ...ex, series: ex.series.map((s, j) => j === seriesIndex ? !s : s) }
+          : ex
       )
-      return { ...prev, seriesAbs: newSeries, absExercises: newAbs }
+      const newCount = newAbs.reduce((sum, ex) => sum + ex.series.filter(Boolean).length, 0)
+      return { ...prev, absExercises: newAbs, seriesAbs: newCount }
     })
   }
 
-  const toggleBraSeries = (i) => {
-    setState((prev) => ({ ...prev, seriesBra: prev.seriesBra + (prev.braExercises[i].done ? 0 : 1), braExercises: prev.braExercises.map((ex, idx) => idx === i ? { ...ex, done: !ex.done } : ex) }))
+  const toggleBraSeries = (exerciseIndex, seriesIndex) => {
+    setState((prev) => {
+      const newBra = prev.braExercises.map((ex, idx) =>
+        idx === exerciseIndex
+          ? { ...ex, series: ex.series.map((s, j) => j === seriesIndex ? !s : s) }
+          : ex
+      )
+      const newCount = newBra.reduce((sum, ex) => sum + ex.series.filter(Boolean).length, 0)
+      return { ...prev, braExercises: newBra, seriesBra: newCount }
+    })
   }
 
   const resetDay = () => {
@@ -260,6 +270,16 @@ function App() {
       completed: false,
       medal: null,
       warning: null,
+      absExercises: [
+        { name: '1. Crunch abdominal 3x25', series: [false, false, false] },
+        { name: '2. Elevaciones de piernas 3x15', series: [false, false, false] },
+        { name: '3. Plancha abdominal 3x45s', series: [false, false, false] },
+      ],
+      braExercises: [
+        { name: '1. Agarre / hand-grip 3x30s', series: [false, false, false] },
+        { name: '2. Fondos 3x12', series: [false, false, false] },
+        { name: '3. Curl bíceps 3x15', series: [false, false, false] },
+      ],
     }))
   }
 
@@ -378,9 +398,13 @@ function App() {
         setRegistrationLoading(false)
         return
       }
+      // VAPID fallback: la clave publica no es secreta, podemos inyectarla directo
+      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY ||
+        import.meta.env.VAPID_PUBLIC_KEY ||
+        'BD4UAnG28rBj-_O-1Xff0ZSGRWAOy4eEhxSa5fdN3tfU1NdY3pgyDA9h3dKb_DJeWCCqrbGKdVRfUckxPf0LPjA'
       const subscription = await sw.pushManager.subscribe({
         userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(import.meta.env.VITE_GITHUB_PUSHER || import.meta.env.VAPID_PUBLIC_KEY || ''),
+        applicationServerKey: urlBase64ToUint8Array(vapidKey),
       })
       const ghToken = import.meta.env.VITE_GITHUB_TOKEN || import.meta.env.REACT_APP_GITHUB_TOKEN || ''
       setPushPhase('api')
@@ -413,12 +437,15 @@ function App() {
       setPushPhase('done')
       setRegistrationLoading(false)
       setPushError(null)
+      // Solo mostrar "activado" cuando la suscripcion y el push a GitHub hayan ido bien
       alert('🔔 Avisos activados. Recibirás recordatorios cada hora.')
     } catch (err) {
       console.error('Push registration error:', err)
       setPushError(err.message || String(err))
       setPushPhase('error')
       setRegistrationLoading(false)
+      // SOLO se considera "activado" si la suscripcion y el POST a GitHub dieron positivo
+      // No mostrar "✅ Avisos activados" en caso de error
     }
   }
   function urlBase64ToUint8Array(base64String) {
@@ -508,7 +535,7 @@ function App() {
   return (
     <div className="app-container">
       {/* Header */}
-      <header className="app-header">
+      <header className="app-header" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00ff88] to-[#00d4b8] flex items-center justify-center text-black font-bold text-xl shrink-0">
             OV

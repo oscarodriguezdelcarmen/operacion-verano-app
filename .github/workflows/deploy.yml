@@ -37,6 +37,7 @@ jobs:
         run: npm run build
         env:
           REACT_APP_VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
+          VITE_VAPID_PUBLIC_KEY: ${{ secrets.VAPID_PUBLIC_KEY }}
           REACT_APP_GITHUB_TOKEN: ${{ secrets.GH_ADMIN_TOKEN }}
 
       - name: Upload artifact

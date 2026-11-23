@@ -99,18 +99,20 @@ export default function TodayPanel({
           <span className="text-sm text-[#6a6a7a] ml-auto">{state.seriesAbs}/9 series</span>
         </div>
         <div className="space-y-2">
-          {state.absExercises.map((ex, i) => (
-            <div key={i} className="custom-checkbox">
-              <input
-                type="checkbox"
-                checked={ex.done}
-                onChange={() => onToggleAbs(i)}
-              />
-              <span className="checkbox-mark" />
-              <span className="flex-1 text-sm font-medium">{ex.name}</span>
-              <span className="text-xs text-[#6a6a7a]">{i < 3 ? 'Serie ' + (i + 1) : ''}</span>
-            </div>
-          ))}
+          {state.absExercises.map((ex, exerciseIdx) =>
+            ex.series.map((done, seriesIdx) => (
+              <div key={seriesIdx} className="custom-checkbox flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={done}
+                  onChange={() => onToggleAbs(exerciseIdx, seriesIdx)}
+                />
+                <span className="checkbox-mark" />
+                <span className="flex-1 text-sm font-medium">{ex.name}</span>
+                <span className="text-xs text-[#6a6a7a] font-mono">S{seriesIdx + 1}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -122,18 +124,20 @@ export default function TodayPanel({
           <span className="text-sm text-[#6a6a7a] ml-auto">{state.seriesBra}/3 series</span>
         </div>
         <div className="space-y-2">
-          {state.braExercises.map((ex, i) => (
-            <div key={i} className="custom-checkbox">
-              <input
-                type="checkbox"
-                checked={ex.done}
-                onChange={() => onToggleBra(i)}
-              />
-              <span className="checkbox-mark" />
-              <span className="flex-1 text-sm font-medium">{ex.name}</span>
-              <span className="text-xs text-[#6a6a7a]">{i < 3 ? 'Serie ' + (i + 1) : ''}</span>
-            </div>
-          ))}
+          {state.braExercises.map((ex, exerciseIdx) =>
+            ex.series.map((done, seriesIdx) => (
+              <div key={seriesIdx} className="custom-checkbox flex items-center gap-2">
+                <input
+                  type="checkbox"
+                  checked={done}
+                  onChange={() => onToggleBra(exerciseIdx, seriesIdx)}
+                />
+                <span className="checkbox-mark" />
+                <span className="flex-1 text-sm font-medium">{ex.name}</span>
+                <span className="text-xs text-[#6a6a7a] font-mono">S{seriesIdx + 1}</span>
+              </div>
+            ))
+          )}
         </div>
       </div>
 
@@ -161,7 +165,7 @@ export default function TodayPanel({
               <BellOff size={18} className="text-[#ff453a]" />
             )}
             <span className="text-sm font-bold">
-              {notifPermission === 'granted' ? '✅ Avisos activados' : notifPermission === 'denied' ? '⚠️ Avisos denegados' : '🔔 Activar recordatorios cada 1h'}
+              {pushRegistered ? '✅ Avisos activados' : notifPermission === 'granted' ? '🔔 Avisos programados' : notifPermission === 'denied' ? '⚠️ Avisos denegados' : '🔔 Activar recordatorios cada 1h'}
             </span>
           </div>
           <div className="text-xs text-[#6a6a7a] mt-1">
