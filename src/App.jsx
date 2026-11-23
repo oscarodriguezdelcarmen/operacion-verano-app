@@ -531,8 +531,8 @@ function App() {
               pctKm={pctKm}
               pctAbs={pctAbs}
               pctBra={pctBra}
-              medalEmoji={medalEmoji()}
-              medalLabel={medalLabel()}
+              medalEmoji={medalEmoji}
+              medalLabel={medalLabel}
               medalColor={medalColor}
               completed={state.completed}
               currentWarning={currentWarning}
