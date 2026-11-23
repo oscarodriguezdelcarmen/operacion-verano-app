@@ -41,7 +41,30 @@ const STORAGE_KEYS = {
 function loadState() {
   const raw = LS.get(STORAGE_KEYS.state)
   if (raw) {
-    try { return JSON.parse(raw) } catch { return null }
+    try {
+      let s = JSON.parse(raw)
+      // MIGRACIÓN: formato anterior (v1) tenía absExercises y braExercises como arrays de booleans
+      // [false, false, false] en vez de [{name, series: [false, false, false]}, ...]
+      if (Array.isArray(s.absExercises) && s.absExercises.length === 3 && typeof s.absExercises[0] === 'boolean') {
+        s.absExercises = [
+          { name: '1. Crunch abdominal 3x25', series: [s.absExercises[0], false, false] },
+          { name: '2. Elevaciones de piernas 3x15', series: [s.absExercises[1], false, false] },
+          { name: '3. Plancha abdominal 3x45s', series: [s.absExercises[2], false, false] },
+        ]
+      }
+      if (Array.isArray(s.braExercises) && s.braExercises.length === 3 && typeof s.braExercises[0] === 'boolean') {
+        s.braExercises = [
+          { name: '1. Agarre / hand-grip 3x30s', series: [s.braExercises[0], false, false] },
+          { name: '2. Fondos 3x12', series: [s.braExercises[1], false, false] },
+          { name: '3. Curl bíceps 3x15', series: [s.braExercises[2], false, false] },
+        ]
+      }
+      // Also merge with cumulative if present (compatibilidad con versiones anteriores)
+      if (!s.cumulative && LS.get(STORAGE_KEYS.cumulative)) {
+        s.cumulative = JSON.parse(LS.get(STORAGE_KEYS.cumulative))
+      }
+      return s
+    } catch { return null }
   }
   return null
 }

@@ -1,12 +1,4 @@
-const CACHE_NAME = 'operacion-verano-v2'
-const CACHE_URLS = [
-  '/operacion-verano-app/',
-  '/operacion-verano-app/index.html',
-  '/operacion-verano-app/manifest.webmanifest',
-  '/operacion-verano-app/icons/icon-192.png',
-  '/operacion-verano-app/icons/icon-512.png',
-  '/operacion-verano-app/icons/apple-touch-icon.png',
-]
+const CACHE_NAME = 'operacion-verano-v4'
 
 self.addEventListener('install', (event) => {
   event.waitUntil(
@@ -24,6 +16,40 @@ self.addEventListener('activate', (event) => {
       return Promise.all(keys.filter((k) => k !== CACHE_NAME).map((k) => caches.delete(k)))
     }).then(() => {
       self.clients.claim()
+    })
+  )
+})
+
+self.addEventListener('fetch', (event) => {
+  const { request } = event
+  const { url } = request
+  const isHtml = request.mode === 'navigate' || url.pathname.endsWith('.html')
+  const isStatic = url.pathname.includes('icons/') || url.pathname.includes('manifest.webmanifest')
+
+  // Network-first para HTML y JS/CSS (siempre recargar y actualizar el bundle)
+  if (isHtml || (url.pathname.includes('.js') || url.pathname.includes('.css'))) {
+    event.respondWith(
+      fetch(request)
+        .then((response) => {
+          // Cache la respuesta recién obtenida
+          const clone = response.clone()
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, clone)
+          })
+          return response
+        })
+        .catch(() => {
+          // Fallback: intentar caché local si la red falla
+          return caches.match(request).then((cached) => cached || caches.match('/operacion-verano-app/index.html'))
+        })
+    )
+    return
+  }
+
+  // Cache-first para assets estáticos (iconos, manifesto)
+  event.respondWith(
+    caches.match(request).then((cached) => {
+      return cached || fetch(request).catch(() => null)
     })
   )
 })
