@@ -5,7 +5,8 @@ export default function TodayPanel({
   state, totalPct, pctFlexion, pctKm, pctAbs, pctBra, medalEmoji, medalLabel, medalColor,
   completed, currentWarning, onAddFlexion, onSetFlexion, onAddKm, onSetKm,
   onToggleAbs, onToggleBra, onReset, onGold, onRegisterPush,
-  pushRegistered, registrationLoading, notificationsSupported, notifPermission
+  pushRegistered, registrationLoading, notificationsSupported, notifPermission,
+  pushPhase, pushError
 }) {
   const flexionProgress = Math.min(100, (state.flexions / 100) * 100)
   const kmProgress = Math.min(100, (state.km / 5) * 100)
