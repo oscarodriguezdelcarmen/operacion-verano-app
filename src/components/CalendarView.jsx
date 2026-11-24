@@ -23,7 +23,7 @@ function getFirstDay(year, month) {
   return new Date(year, month, 1).getDay()
 }
 
-export default function CalendarView({ cumulative, date, goldNotifiedDate }) {
+export default function CalendarView({ cumulative, date, goldNotifiedDate, medalHistory }) {
   const [view, setView] = useState('month')
   const now = new Date()
   const currentYear = now.getFullYear()
@@ -147,6 +147,20 @@ export default function CalendarView({ cumulative, date, goldNotifiedDate }) {
           <div className="stat-value text-[#ffd700] text-xl">{cumulative?.goldDays || 0}</div>
         </div>
       </div>
+
+      {/* Histórico de medallas */}
+      {medalHistory && medalHistory.length > 0 && (
+        <div className="mt-6 p-4 bg-[#141418] rounded-2xl border border-[#23232e]">
+          <div className="text-sm font-bold text-[#00ff88] mb-3">📜 Historial de medallas del día</div>
+          <div className="flex flex-wrap gap-2">
+            {medalHistory.map((h, i) => (
+              <span key={i} className={`badge ${h.medal === 'gold' ? 'badge-green' : h.medal === 'silver' ? 'badge-amber' : h.medal === 'bronze' ? 'badge-red' : 'badge-gray'}`}>
+                {h.medal === 'gold' ? '🥇 Oro' : h.medal === 'silver' ? '🥈 Plata' : h.medal === 'bronze' ? '🥉 Bronce' : '❌ Fallido'} · {h.date}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Vitrina de logros */}
       <div className="mt-6 p-4 bg-[#141418] rounded-2xl border border-[#23232e]">

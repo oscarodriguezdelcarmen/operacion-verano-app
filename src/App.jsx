@@ -74,7 +74,10 @@ function loadState() {
         weight: null,
         weights: [],
         goldNotifiedDate: '',
+        completedDate: null,
+        medalHistory: [],
         cumulative: { flexions: 0, km: 0, abSeries: 0, braSeries: 0, goldDays: 0, silverDays: 0, bronzeDays: 0, failDays: 0, goldStreak: 0, bestStreak: 0, activeStreak: 0, totalDays: 0 },
+        toast: null,
       }
       for (const key in defaults) {
         if (!(key in s)) {
@@ -190,9 +193,13 @@ function App() {
       weight: loadWeight(),
       weights: loadWeightHistory(),
       goldNotifiedDate: loadState()?.goldNotifiedDate || '',
+      completedDate: null,
+      medalHistory: [],
       cumulative: loadCumulative(),
+      toast: null,
     }
   })
+  const [toast, setToast] = useState(null)
 
   // Persist state
   useEffect(() => {
@@ -435,25 +442,105 @@ function App() {
     setRegistrationLoading(true)
     setPushError(null)
     try {
-      const sw = await navigator.serviceWorker.ready
-      const sub = await sw.pushManager.getSubscription()
-      if (sub) {
-        setPushRegistered(true)
-        setPushPhase('done')
+      console.log('[Push] Registrando Service Worker...')
+      const reg = await navigator.serviceWorker.register(import.meta.env.BASE_URL + 'sw.js', {
+        scope: import.meta.env.BASE_URL,
+      })
+      console.log('[Push] SW registrado:', reg)
+
+      // Espera activa: como máximo 3s a reg.active
+      // pushManager: getSubscription() → subscribe(), timeout de 8s con Promise.race
+      let sub = null
+      const activeTimer = new Promise((resolve) => {
+        const timer = setTimeout(() => {
+          console.log('[Push] Tiempo agotado (3s): reg.activo no disponible, continuando con pushManager')
+          resolve(null)
+        }, 3000)
+        const checkActive = () => {
+          if (reg.active) {
+            clearTimeout(timer)
+            console.log('[Push] reg.activo disponible:', reg.active)
+            resolve(reg)
+          } else {
+            setTimeout(checkActive, 200)
+          }
+        }
+        checkActive()
+      })
+
+      const pushOp = new Promise((resolve, reject) => {
+        const timer = setTimeout(() => {
+          console.log('[Push] Tiempo agotado (8s) en pushManager')
+          resolve(null)
+        }, 8000)
+        reg.pushManager.getSubscription().then((s) => {
+          clearTimeout(timer)
+          console.log('[Push] pushManager.getSubscription():', !!s)
+          resolve(s)
+        }).catch((err) => {
+          clearTimeout(timer)
+          console.error('[Push] getSubscription error:', err)
+          const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY ||
+            import.meta.env.VAPID_PUBLIC_KEY ||
+            'BD4UAnG28rBj-_O-1Xff0ZSGRWAOy4eEhxSa5fdN3tfU1NdY3pgyDA9h3dKb_DJeWCCqrbGKdVRfUckxPf0LPjA'
+          reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidKey),
+          }).then((s) => {
+            clearTimeout(timer)
+            console.log('[Push] pushManager.subscribe() → OK')
+            resolve(s)
+          }).catch((err) => {
+            clearTimeout(timer)
+            console.error('[Push] subscribe error:', err)
+            reject(err)
+          })
+        })
+      })
+
+      const activeReady = await activeTimer
+      if (activeReady) {
+        // reg.activo disponible → intentar suscripción
+        sub = await reg.pushManager.getSubscription().catch(() => null)
+        if (!sub) {
+          const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY ||
+            import.meta.env.VAPID_PUBLIC_KEY ||
+            'BD4UAnG28rBj-_O-1Xff0ZSGRWAOy4eEhxSa5fdN3tfU1NdY3pgyDA9h3dKb_DJeWCCqrbGKdVRfUckxPf0LPjA'
+          sub = await reg.pushManager.subscribe({
+            userVisibleOnly: true,
+            applicationServerKey: urlBase64ToUint8Array(vapidKey),
+          }).catch((err) => {
+            console.error('[Push] subscribe error:', err)
+            return null
+          })
+        }
+      } else {
+        // activeTimer agotado → esperar pushOp (getSubscription/subscribe, 8s)
+        const pushResult = await pushOp
+        if (pushResult instanceof Error) throw pushResult
+        if (pushResult && typeof pushResult === 'object' && 'endpoint' in pushResult) {
+          sub = pushResult
+        } else if (pushResult === null) {
+          console.warn('[Push] No se obtuvo suscripción en pushManager')
+          setPushError('No se pudo establecer la suscripción push.')
+          setRegistrationLoading(false)
+          setPushPhase('error')
+          return
+        }
+      }
+
+      if (!sub) {
+        console.warn('[Push] Sin suscripción push final')
+        setPushError('No se pudo establecer la suscripción push.')
         setRegistrationLoading(false)
+        setPushPhase('error')
         return
       }
-      // VAPID fallback: la clave publica no es secreta, podemos inyectarla directo
-      const vapidKey = import.meta.env.VITE_VAPID_PUBLIC_KEY ||
-        import.meta.env.VAPID_PUBLIC_KEY ||
-        'BD4UAnG28rBj-_O-1Xff0ZSGRWAOy4eEhxSa5fdN3tfU1NdY3pgyDA9h3dKb_DJeWCCqrbGKdVRfUckxPf0LPjA'
-      const subscription = await sw.pushManager.subscribe({
-        userVisibleOnly: true,
-        applicationServerKey: urlBase64ToUint8Array(vapidKey),
-      })
-      const ghToken = import.meta.env.VITE_GITHUB_TOKEN || import.meta.env.REACT_APP_GITHUB_TOKEN || ''
+
+      console.log('[Push] Subscripción obtenida:', sub.endpoint)
       setPushPhase('api')
-      const res = await fetch('https://api.github.com/repos/oscarodriguezdelcarmen/operacion-verano-app/issues', {
+      const ghToken = import.meta.env.VITE_GITHUB_TOKEN || import.meta.env.REACT_APP_GITHUB_TOKEN || ''
+      const fetchRes = await fetch('https://api.github.com/repos/oscarodriguezdelcarmen/operacion-verano-app/issues', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -474,23 +561,25 @@ function App() {
         }),
         signals: [AbortSignal.timeout(8000)],
       })
-      if (!res.ok) {
-        const text = await res.text().catch(() => '')
-        throw new Error(`GitHub API responded ${res.status}: ${text.substring(0, 200)}`)
+      console.log('[Push] GitHub API responded:', fetchRes.status)
+      if (fetchRes.ok) {
+        setPushRegistered(true)
+        setPushPhase('done')
+        setRegistrationLoading(false)
+        setPushError(null)
+        console.log('[Push] ✅ Avisos activados (HTTP ' + fetchRes.status + ')')
+      } else {
+        const text = await fetchRes.text().catch(() => '')
+        console.error('[Push] GitHub API error:', fetchRes.status, text)
+        setPushError('GitHub API respondió ' + fetchRes.status + ': ' + text.substring(0, 200))
+        setRegistrationLoading(false)
+        setPushPhase('error')
       }
-      setPushRegistered(true)
-      setPushPhase('done')
-      setRegistrationLoading(false)
-      setPushError(null)
-      // Solo mostrar "activado" cuando la suscripcion y el push a GitHub hayan ido bien
-      alert('🔔 Avisos activados. Recibirás recordatorios cada hora.')
     } catch (err) {
-      console.error('Push registration error:', err)
+      console.error('[Push] Error completo:', err)
       setPushError(err.message || String(err))
-      setPushPhase('error')
       setRegistrationLoading(false)
-      // SOLO se considera "activado" si la suscripcion y el POST a GitHub dieron positivo
-      // No mostrar "✅ Avisos activados" en caso de error
+      setPushPhase('error')
     }
   }
   function urlBase64ToUint8Array(base64String) {
@@ -528,12 +617,48 @@ function App() {
   }
 
   const handleGoldComplete = () => {
+    const now = formatDate(getMadridTime())
+    const pct = totalPct
+    let medal = 'failed'
+    if (pct >= 99.99) medal = 'gold'
+    else if (pct >= 75) medal = 'silver'
+    else if (pct >= 50) medal = 'bronze'
+
+    const medalEmojiMap = { gold: '🥇', silver: '🥈', bronze: '🥉', failed: '❌' }
+    const medalLabelMap = {
+      gold: 'Medalla de Oro',
+      silver: 'Medalla de Plata',
+      bronze: 'Medalla de Bronce',
+      failed: 'Día fallido',
+    }
+    const summary = `🏁 Día finalizado ${medalEmojiMap[medal]} ${medalLabelMap[medal]} · ${pct.toFixed(1)}% del día`
+
+    // Guardar medalla obtenida + historial de medallas
+    setState((prev) => ({
+      ...prev,
+      completed: true,
+      medalObtained: medal,
+      medal: medal,
+      medalHistory: [...(prev.medalHistory || []), { date: now, medal }],
+    }))
+
+    // Resumen del día (toast)
+    setToast({ icon: medalEmojiMap[medal], message: summary })
+
+    // ÚNICAMENTE si es Oro (100%) marcamos COMPLETED_DATE para silenciar avisos horarios
+    if (medal === 'gold') {
+      setState((prev) => ({
+        ...prev,
+        goldNotifiedDate: now,
+        completedDate: now,
+      }))
+    }
+
+    // Push silencio de seguimiento (si estaba activo, GOLD_COMPLETED; si no, GOLD_REVOKED)
     if (state.completed) {
-      if (!state.goldNotifiedDate) {
-        sendSilentPush('[GOLD_COMPLETED]', { date: formatDate(getMadridTime()) })
-      }
+      sendSilentPush('[GOLD_COMPLETED]', { date: now })
     } else {
-      sendSilentPush('[GOLD_REVOKED]', { date: formatDate(getMadridTime()) })
+      sendSilentPush('[GOLD_REVOKED]', { date: now })
     }
   }
 
@@ -580,7 +705,7 @@ function App() {
   return (
     <div className="app-container">
       {/* Header */}
-      <header className="app-header" style={{ paddingTop: 'max(1rem, env(safe-area-inset-top))' }}>
+      <header className="app-header" style={{ paddingTop: 'env(safe-area-inset-top)' }}>
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00ff88] to-[#00d4b8] flex items-center justify-center text-black font-bold text-xl shrink-0">
             OV
@@ -659,6 +784,7 @@ function App() {
               cumulative={state.cumulative}
               date={state.date}
               goldNotifiedDate={state.goldNotifiedDate}
+              medalHistory={state.medalHistory}
             />
           )}
 

@@ -76,10 +76,12 @@
 
   /* --- Header --- */
   .app-header {
-    background: linear-gradient(180deg, #0a0a0c 0%, #141418 100%);
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background-color: #0b0f17;
     border-bottom: 1px solid #1c1c24;
-    padding: 16px 16px 12px;
-    padding-bottom: calc(16px + env(safe-area-inset-top));
+    padding: env(safe-area-inset-top) 16px 12px;
     flex-shrink: 0;
   }
 
@@ -288,6 +290,7 @@
     border-radius: 12px;
     transition: background 0.2s;
     user-select: none;
+    position: relative;
   }
 
   .custom-checkbox:hover {
@@ -297,7 +300,6 @@
   .custom-checkbox input {
     position: absolute;
     opacity: 0;
-    pointer-events: none;
   }
 
   .checkbox-mark {

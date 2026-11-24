@@ -13,6 +13,13 @@ export default function TodayPanel({
   const absProgress = state.seriesAbs >= 9 ? 100 : Math.min(100, (state.seriesAbs / 9) * 100)
   const braProgress = state.seriesBra >= 3 ? 100 : Math.min(100, (state.seriesBra / 3) * 100)
 
+  const getButtonLabel = () => {
+    if (totalPct >= 99.99) return 'Finalizar Día y Obtener Medalla de Oro 🥇'
+    if (totalPct >= 75) return 'Finalizar Día y Obtener Medalla de Plata 🥈'
+    if (totalPct >= 50) return 'Finalizar Día y Obtener Medalla de Bronce 🥉'
+    return 'Finalizar Día (Sin Medalla · ' + totalPct.toFixed(1) + '%)'
+  }
+
   return (
     <div>
       {/* Medal Banner */}
@@ -101,11 +108,14 @@ export default function TodayPanel({
         <div className="space-y-2">
           {state.absExercises.map((ex, exerciseIdx) =>
             ex.series.map((done, seriesIdx) => (
-              <div key={seriesIdx} className="custom-checkbox flex items-center gap-2">
+              <div
+                key={seriesIdx}
+                className="custom-checkbox flex items-center gap-2"
+                onClick={() => onToggleAbs(exerciseIdx, seriesIdx)}
+              >
                 <input
                   type="checkbox"
                   checked={done}
-                  onChange={() => onToggleAbs(exerciseIdx, seriesIdx)}
                 />
                 <span className="checkbox-mark" />
                 <span className="flex-1 text-sm font-medium">{ex.name}</span>
@@ -126,11 +136,14 @@ export default function TodayPanel({
         <div className="space-y-2">
           {state.braExercises.map((ex, exerciseIdx) =>
             ex.series.map((done, seriesIdx) => (
-              <div key={seriesIdx} className="custom-checkbox flex items-center gap-2">
+              <div
+                key={seriesIdx}
+                className="custom-checkbox flex items-center gap-2"
+                onClick={() => onToggleBra(exerciseIdx, seriesIdx)}
+              >
                 <input
                   type="checkbox"
                   checked={done}
-                  onChange={() => onToggleBra(exerciseIdx, seriesIdx)}
                 />
                 <span className="checkbox-mark" />
                 <span className="flex-1 text-sm font-medium">{ex.name}</span>
@@ -148,7 +161,7 @@ export default function TodayPanel({
             className="btn btn-success btn-xl"
             onClick={onGold}
           >
-            <Zap size={20} /> Finalizar Día y Obtener Medalla de Oro
+            <Zap size={20} /> {getButtonLabel()}
           </button>
         </div>
       )}
