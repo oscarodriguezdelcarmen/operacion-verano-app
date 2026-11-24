@@ -59,6 +59,28 @@ function loadState() {
           { name: '3. Curl bíceps 3x15', series: [s.braExercises[2], false, false] },
         ]
       }
+      // Rellenar campos faltantes con valores por defecto (evitar TypeError en renderizado)
+      const defaults = {
+        flexions: 0,
+        km: 0,
+        seriesAbs: 0,
+        seriesBra: 0,
+        date: formatDate(new Date()),
+        completed: false,
+        medal: null,
+        medalObtained: null,
+        warning: null,
+        tempo: 'normal',
+        weight: null,
+        weights: [],
+        goldNotifiedDate: '',
+        cumulative: { flexions: 0, km: 0, abSeries: 0, braSeries: 0, goldDays: 0, silverDays: 0, bronzeDays: 0, failDays: 0, goldStreak: 0, bestStreak: 0, activeStreak: 0, totalDays: 0 },
+      }
+      for (const key in defaults) {
+        if (!(key in s)) {
+          s[key] = defaults[key]
+        }
+      }
       // Also merge with cumulative if present (compatibilidad con versiones anteriores)
       if (!s.cumulative && LS.get(STORAGE_KEYS.cumulative)) {
         s.cumulative = JSON.parse(LS.get(STORAGE_KEYS.cumulative))
